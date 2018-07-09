@@ -1,0 +1,574 @@
+---
+title: "Regression Analysis of House Prices at Ames, Iowa"
+author: "Gopi Krishna"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if(! "tidyverse" %in% installed.packages()) 
+  install.packages("tidyverse", depend = TRUE)
+if(! "readxl" %in% installed.packages()) 
+  install.packages("readxl", depend = TRUE)
+if(! "pastecs" %in% installed.packages()) 
+  install.packages("pastecs", depend = TRUE)
+if(! "plyr" %in% installed.packages()) 
+  install.packages("plyr", depend = TRUE)
+if(! "car" %in% installed.packages()) 
+  install.packages("car", depend = TRUE)
+if(! "corrplot" %in% installed.packages()) 
+  install.packages("corrplot", depend = TRUE)
+suppressPackageStartupMessages({
+library(tidyverse)
+library(readxl)
+library(pastecs)
+library(plyr)
+library(car)
+library(corrplot)
+})
+```
+
+## 1. Introduction
+In the real estate market of Ames, Iowa, the valuations of residential property by sellers, buyers and real estate agencies tend to be heuristic. Lately, determining the fair value of houses has become crucial for accurate financial reporting and purchase decisions in this market.Assuming that the sales price is a close reflection of the fair price, there is no robust mechanism to determine/predict  the  fair price of properties in this county.  
+
+## 2. Project Goal
+The aim of this project is to 
+ - Identify comprehensive attributes of a house that significantly affect its fair market  price.
+ - Statistically predict the fair market price for a house in Ames, Iowa, provided the set of attributes.
+
+## 3. Data
+The proposed dataset contains information on individual residential properties sold in Ames, Iowa from 2006 to 2010. It contains 2930 records and 82 variables, of which 46 are qualitative (23 nominal, 23 ordinal), and 34 are quantitative (14 discrete, and 20 continuous). Overall, there are 719 missing values, which form only 0.3% of the dataset. The features in the dataset include the area of land, the area of living space, the number of bedrooms, the number of bathrooms, the number of fireplaces, the size and type of garage, the exterior type, the year built, and the year/month sold. I considered converting continuous variables such as screen porch area, open porch area, enclosed porch area and pool area to nominal variables (these attributes have significant zero values) so that the resulting variable(s) can better explain the variance in the fair price.
+
+The data has been obtained from the American Statistical Association, while it’s primary source is IOWA tax- Ames Assessor’s Office.
+
+
+**Variable Screening based on Business Analysis**
+
+The data set has 80 variables that explain the houses sold, of which Sales Price is our dependent variable and the remaining 79 are independent variables. Before performing a statistical analysis, we perform variable engineering and screening of the data based on business knowledge of the real estate market.
+
+We rated the variables on a scale of 1 to 4, where 1 means variables are high contributors to the housing price and 4 means the variables are very low contributors to the selling price. High contribution means that the cost of adding that feature to the house is overcompensated in the selling price. The summary for the same is as follows:
+
+
+| **Variable** | **Importance** | **Explanation** |
+| --- | --- | --- |
+| MS SubClass | 2 | It captures the type of dwelling involved in the sale. It&#39;s the house style and some house styles sell for a better price than others. |
+| MS Zoning | 1 | Includes the way houses have been zoned legally as Agricultural, industrial, commercial and residential and on density of population. This affects taxes and other related laws around construction, renovation, additional storey&#39;s allowed. Houses in high density places usually sell for more, as real estate is scarce there. |
+| Lot Frontage | 1 | More the width of the front part of the lot, more is the land owned by the buyer and therefore, higher the value of the house. |
+| Lot Area | 1 | Higher lot area means greater value of the house. |
+| Street | 3 | The quality of road to access the house matters in the pricing of the house. In USA, though, the quality of roads is generally good and therefore this factor may not be that significant. |
+| Alley | 2 | Alley access is an important factor in terms of safety and traffic. Alley access is preferred in general and can impact housing prices depending on a lot of factors including neighborhood. |
+| Lot Shape | 1 | The shape of the house is very important. An irregular shape house loses its value. |
+| Land Contour | 1 | A house that is not well leveled along its area be valued lower against a property that is. |
+| Utilities | 1 | A house with all public utilities is valued more than one which doesn&#39;t. |
+| Lot Config | 1 | An inside lot is usually preferred than an outside or corner lot as they have greater road frontage which affects safety and noise into the house because of traffic. |
+| Land Slope | 1 | A house on a severe slope is lesser in value |
+| Neighborhood | 2 | Neighborhoods close to city downtown are better priced. |
+| Condition 1 | 1 | Houses close to rail tracks are never preferred because of the noise and impact on the house. |
+| Condition 2 | 1 | Houses close to parks and connecting easily to major roads and highways on the other hand are preferred and people are willing to pay higher. |
+| Bldg Type | 1 | Single family detached houses are preferred over Town houses |
+| House Style | 2 | 1.5,2.5 storey houses are not preferred |
+| Overall Qual | 3 | These are individual ratings of the houses probably by an external agency. The source of the same is not given as a part of the dataset. Hence it may or may not be important. Also, this data could be very difficult to gather in future. |
+| Overall Cond | 3 | These are individual ratings of the houses probably by an external agency. The source of the same is not given as a part of the dataset. Hence it may or may not be important. Also, this data could be very difficult to gather in future. |
+| Year Built | 1 | Newer houses are preferred in general unless they are vintage or of historical importance. |
+| Year Remod/Add | 1 | A remodeled house sells for more |
+| Roof Style | 2 | Gable is the preferred and most commonly used material. A style not consistent with the weather conditions of the place can lower house value |
+| Roof Matl | 4 | Most houses use Shingle. This is not a part of a property listing. |
+| Exterior 1st | 3 | Most houses use Vinyl Sliding in general. If the siding is not in good condition, its value can fall. |
+| Exterior 2nd | 3 | Most houses use Vinyl Sliding in general. If the siding is not in good condition, its value can fall. |
+| Mas Vnr Type | 3 | Masonary Veneer is not a preferred factor. |
+| Mas Vnr Area | 3 | Masonary Veneer is not a preferred factor. |
+| Exter Qual | 4 | Evaluation by top real estate agents is considered by buyers but we do not know the source of this evaluation score and so it may or may not be used. |
+| Exter Cond | 4 | Evaluation by top real estate agents is considered by buyers but we do not know the source of this evaluation score and so it may or may not be used. |
+| Foundation | 1 | Poured Concrete Foundation is one of the strongest. |
+| Bsmt Qual | 4 | Evaluation by top real estate agents is considered by buyers but we do not know the source of this evaluation score and so it may or may not be used. |
+| Bsmt Cond | 4 | Evaluation by top real estate agents is considered by buyers but we do not know the source of this evaluation score and so it may or may not be used. |
+| Bsmt Exposure | 4 | Evaluation by top real estate agents is considered by buyers but we do not know the source of this evaluation score and so it may or may not be used. |
+| BsmtFin Type 1 | 4 | Evaluation by top real estate agents is considered by buyers but we do not know the source of this evaluation score and so it may or may not be used. |
+| BsmtFin SF 1 | 2 | Bigger basement means higher carpet area of the house and therefore higher the value of the house. |
+| BsmtFin Type 2 | 3 | Evaluation by top real estate agents is considered by buyers but we do not know the source of this evaluation score and so it may or may not be used. |
+| BsmtFin SF 2 | 2 | Bigger basement means higher carpet area of the house and therefore higher the value of the house. |
+| Bsmt Unf SF | 2 | Bigger basement means higher carpet area of the house and therefore higher the value of the house. |
+| Total Bsmt SF | 3 | Bigger basement means higher carpet area of the house and therefore higher the value of the house. |
+| Heating | 4 | Most houses use Gas |
+| Heating QC | 4 | Subjective ratings can be ignored since the source is not known |
+| Central Air | 3 | Houses are expected to have Central Air conditioning and almost all have them given the weather conditions. |
+| Electrical | 4 | Most houses have standard circuit breakers. This is not a significant variable as most houses have a proper electrical system |
+| 1st Flr SF | 1 | A measure of the size of the house |
+| 2nd Flr SF | 1 | A measure of the size of the house |
+| Low Qual Fin SF | 1 | Subjective ratings can be ignored since the source is not known |
+| Gr Liv Area | 2 | A measure of the size of the house. Also bigger living area is preferred. |
+| Bsmt Full Bath | 2 | A measure of the size of the house |
+| Bsmt Half Bath | 2 | A measure of the size of the house |
+| Full Bath | 2 | A measure of the size of the house |
+| Half Bath | 2 | A measure of the size of the house |
+| Bedroom AbvGr | 3 | A measure of the size of the house |
+| Kitchen AbvGr | 1 | More than one kitchen is preferred. |
+| Kitchen Qual | 4 | Subjective ratings can be ignored since the source is not known |
+| TotRms AbvGrd | 1 |  A measure of the size of the house |
+| Functional | 4 | Subjective comment on condition of the house. Can be ignored since the source is not known |
+| Fireplaces | 1 | Houses with no fireplace are valued lower. More number of fireplaces is preferred. But too many takes away a lot of area of the house. |
+| Fireplace Qu | 4 | Subjective ratings can be ignored since the source is not known |
+| Garage Type | 2 | IOWA has a humid continental climate - experiences thunderstorm, extreme temp - attached preferred |
+| Garage Yr Blt | 2 | A newly built garage would have more value. |
+| Garage Finish | 4 | A finished garage is preferred but wouldn&#39;t affect the value of the house significantly. |
+| Garage Cars | 3 | The more numbers of cars a garage can accommodate the more its valued. |
+| Garage Area | 2 | A measure of the overall area of the house. |
+| Garage Qual | 4 | Subjective ratings can be ignored since the source is not known |
+| Garage Cond | 4 | Subjective ratings can be ignored since the source is not known |
+| Paved Drive | 4 | A paved drive is preferred but does not have the potential to affect sales price much |
+| Wood Deck SF | 2 | A house with a porch can attract a higher price than a one with no porch. |
+| Open Porch SF | 2 | A house with a porch can attract a higher price than a one with no porch. |
+| Enclosed Porch | 4 | A house with a porch can attract a higher price than a one with no porch. |
+| 3Ssn Porch | 4 | A house with a porch can attract a higher price than a one with no porch. |
+| Screen Porch | 4 | A house with a porch can attract a higher price than a one with no porch. |
+| Pool Area | 4 | A house with a pool is more expensive but also a very small pool is not preferred. |
+| Pool QC |   | Subjective ratings can be ignored since the source is not known |
+| Fence |   | A good fence is preferred but won&#39;t attract a higher sales price for the house. |
+| Misc Feature | 4 | They are not major determinants of house prices in general |
+| Misc Val | 4 | The cost of these features wouldn&#39;t significantly affect prices as it includes features which may be useful to one buyer but not to another. They are not generally considered factors |
+| Mo Sold | 3 | Some studies show that houses sold in Spring sell for a little more than other time periods. |
+| Yr Sold |   | Matters |
+| Sale Type | 1 | House sold with a warranty deed is preferred as here the seller guarantees that he or she holds clear title. |
+| Sale Condition | 2 | An abnormal house sale would usually have a lower sales price. |
+
+
+
+**Variable groupings**
+
+We see that the variables like number of bathrooms and area of floors and living room are important features of the house and are broken down into smaller components in the dataset. In order to capture the true impact of these variables, we combine them as follows:
+
+Total bathrooms = Bsmt Full Bath + Bsmt Half Bath + Full Bath + Half Bath
+
+Total Area of the floors = 1st Flr SF + 2nd Flr SF
+
+Total Basement finished Area = BsmtFin SF 1 + BsmtFin SF 2
+
+
+```{r}
+# read data
+AmesHousing <- read.csv("AmesHousing.csv", header=TRUE)
+```
+
+## Exploratory Data Analysis:
+
+```{r}
+# Summary statistics for all variables
+summary(AmesHousing)
+as.data.frame(t(stat.desc(AmesHousing)))
+```
+
+
+```{r, fig.aligh="center"}
+# Detailed exploration of only those variables identified important from domain knowledge
+int_var_from_domain <- c( "Lot.Frontage", "Lot.Area", "Year.Built", "Year.Remod.Add", "BsmtFin.SF.1", "BsmtFin.SF.2", "Bsmt.Unf.SF", "Total.Bsmt.SF", "X1st.Flr.SF", "X2nd.Flr.SF", "Low.Qual.Fin.SF", "Gr.Liv.Area", "Garage.Yr.Blt", "Garage.Area", "Wood.Deck.SF", "Open.Porch.SF")
+
+int_var_data <- AmesHousing[ , c(int_var_from_domain)]
+int_var_data_w_SP <- cbind(int_var_data, AmesHousing$SalePrice)
+colnames(int_var_data_w_SP)[which(names(int_var_data_w_SP) == "AmesHousing$SalePrice")] <- "SalePrice"
+int_var_data_w_SP %>%
+  gather(-SalePrice, key = "var", value = "value") %>% 
+  ggplot(aes(x = value, y = SalePrice)) +
+  geom_point(size=0.1, colour = 'blue', na.rm = TRUE) +
+  facet_wrap(~ var, scales = "free") +
+  theme(axis.line=element_blank(),
+      axis.text.x=element_blank(),
+      axis.text.y=element_blank(),
+      axis.ticks=element_blank(),
+      axis.title.x=element_blank(),
+      axis.title.y=element_blank(),
+      legend.position="none",
+      panel.background=element_blank(),
+      panel.border=element_blank(),
+      panel.grid.major=element_blank(),
+      panel.grid.minor=element_blank(),
+      plot.background=element_blank())
+```
+
+```{r, fig.aligh="center"}
+nom_var_from_domain <- c("MS.SubClass", "MS.Zoning", "Alley", "Lot.Shape", "Land.Contour", "Utilities", "Lot.Config", "Land.Slope", "Neighborhood", "Condition.1", "Condition.2", "Bldg.Type", "House.Style", "Roof.Style", "Foundation", "Bsmt.Full.Bath", "Bsmt.Half.Bath", "Full.Bath", "Half.Bath", "Bedroom.AbvGr", "Kitchen.AbvGr", "TotRms.AbvGrd", "Fireplaces", "Garage.Type", "Garage.Cars", "Sale.Type", "Sale.Condition")
+
+nom_var_data <- AmesHousing[, c(nom_var_from_domain)]
+nom_var_data_w_SP <- cbind(nom_var_data, AmesHousing$SalePrice)
+colnames(nom_var_data_w_SP)[which(names(nom_var_data_w_SP) == "AmesHousing$SalePrice")] <- "SalePrice"
+nom_var_data_w_SP %>%
+  gather(-SalePrice, key = "var", value = "value") %>% 
+  ggplot(aes(x = value, y = SalePrice)) +
+  geom_boxplot(colour = 'purple', na.rm = TRUE) +
+  facet_wrap(~ var, scales = "free") +
+  theme(axis.line=element_blank(),
+      axis.text.x=element_blank(),
+      axis.text.y=element_blank(),
+      axis.ticks=element_blank(),
+      axis.title.x=element_blank(),
+      axis.title.y=element_blank(),
+      legend.position="none",
+      panel.background=element_blank(),
+      panel.border=element_blank(),
+      panel.grid.major=element_blank(),
+      panel.grid.minor=element_blank(),
+      plot.background=element_blank())
+
+sapply(nom_var_data, table)
+```
+
+
+
+## Data Preparation:
+
+Handling missing values and Outliers
+- We choose to drop the variables with many missing values
+- We clean up the data and drop those data with many missing values and ensure that there are no missing values in the data we used for analysis
+- During our research process, we realized that there are large outliers that affected the accuracy of our prediction, we further removed the top 10 outliers from the dataset.
+
+
+- Handling missing values: Among the variables that we think are important, Garage Type have many missing values. In addition, there are three data point that were blank. For garage type, data collected from is not enough for us to work on, so we did not consider the garage type for the model. In addition, there are three data point which has many missing values, and we drop these data points as well.
+
+- Filtering nominal variable according to category features and plots: Among the variables we got, there are many nominal variables. Based on the box plot of these nominal variables, we filtered out some of the variables based on statistical description of these variable and business domain knowledge. The variables we dropped and the reasons are as follows:
+
+| Variable | Reason for excluding |
+| --- | --- |
+| Neighborhood | The Neighborhood variable contains more than 20 categories, and it is and according to box plot there seems to be no obvious groups among the neighborhoods. In addition, we expect the variation of house price explained by neighborhood would also be captured by other variables. |
+| Sale Type | The sale type is also a difficult variable to interpret and might not be directly related the house price. |
+| MS Zoning | The zoning is closely related to the land use, it has much to do with the development of the property instead of the value of the house itself. |
+| Condition 1 | Condition 1 describes the surrounding of the house. No obvious groups among this. |
+| Condition 2 | Condition 2 also describe the surrounding of the house. Yet the according to the box plot some categories within condition 2 has very few observations. |
+| Total Bsmt SF | Initial regression analysis suggested that these variables seems to be in perfect collinear relationship with one or more of the other variables. |
+| Gr Liv Area |
+| Utilities; Kitchen AbvGr; Bsmt Half Bath; Land Contour; | The data collected for these variables are also highly concentrated on just a few categories, so this variable might not be a very good indicator of the house price. |
+| Land Slope; Lot Shape; Lot Config; House Style; | House price according to the box plot does not appear to be significantly different among different slope type, lot shape, lot configuration and house style. |
+
+
+
+- Transform variables better capture the change in dependent variables
+
+In order to better capture the change in dependent variables, we transform some of the variables to create better groups and new variables for our model according to our business knowledge and the exploratory plots.
+
+| Combination of Variables |
+| --- |
+| New Variable | Original Variable | Note |
+| totalbathsC | Bsmt Full Bath, Full Bath, Half Bath | For these variables, it is the combined number would be more meaningful to business. |
+| totalareaFSC | 1 st Flr SF, 2 nd Flr SF |
+| totalbaseSFC | BsmtFin SF 1, BsmtFin SF 2 |
+
+- Transform variables better capture the change in dependent variables – continued: We further group some of the nominal variables according to the box plots and also transform two interval variables for business to understanding the variable easily.
+
+| Grouping and other tansformation |
+| --- |
+| New Variable | Original Variable | Note on the new variable |
+| houseage | Year Built | Buyers generally are more interested in how old the house is, we transform the data for easy understanding |
+| houseremodage | Year Remod Add |
+| FoundationG | Foundation | Houses with concrete or non-concrete as foundation |
+| totalbathsCG | totalbathsC | Houses with no, one, two, three or above three bathrooms |
+| totalFireG | Fireplaces | Houses with no, one, two, or above 2 fireplaces |
+| Garage CarsG | Garage Cars | Houses with garage that could contain no, one, two, three or above three cars |
+| ConditionG | Sale.Condition | Houses with normal or non-normal sales condition |
+
+```{r}
+# Keeping only those variables identified important from domain knowledge (importance levels 1 & 2)
+keeps <- c('MS.Zoning','MS.SubClass','Lot.Area','Lot.Shape','Land.Contour',
+           'Utilities','Lot.Config','Land.Slope','Neighborhood','Condition.1',
+           'Condition.2','Bldg.Type','House.Style','Year.Built','Year.Remod.Add',
+           'Roof.Style','Foundation','BsmtFin.SF.1','BsmtFin.SF.2','Bsmt.Unf.SF',
+           'X1st.Flr.SF','X2nd.Flr.SF','Total.Bsmt.SF','Low.Qual.Fin.SF',
+           'Gr.Liv.Area','Bsmt.Full.Bath','Bsmt.Half.Bath','Full.Bath',
+           'Half.Bath','Bedroom.AbvGr','Kitchen.AbvGr','TotRms.AbvGrd',
+           'Fireplaces','Garage.Type','Garage.Cars','Garage.Area','Wood.Deck.SF',
+           'Open.Porch.SF','Sale.Type','Sale.Condition', 'SalePrice')
+
+AmesHousingC <- AmesHousing[ ,names(AmesHousing) %in% keeps]
+drops <- c("Garage.Type")   # Dropping "Garage Type" as it is not significant and has missing values
+AmesHousingC <- AmesHousingC[ ,!(names(AmesHousingC) %in% drops)]
+AmesHousingC <- na.omit(AmesHousingC)   # 3 observations dropped
+sum(is.na(AmesHousingC))   # No missing values
+
+# Dataset has 39 variables now. We would like to drop few more variables based on their complexity in interpretation, population distribution, distribution(box_plot) with sales price
+
+# NOMINAL
+# 1. Neighbourhood - High number of categories, potentially captured by other var,
+# groupings not available. Can be included later in the model if nothing signif.
+# 2. MS Subclass - not very intuitive. later if nothing
+# 2. Utilities No Sewer - Skewed with only 2 data points as no sewer
+# 3. Condition1 - Group into Norm and Not Norm. Difficult to interpret, drop as 
+# of now.
+# 4. Condition2 - Highly skewed
+# 5. Sale Type - Difficult to interpret. Included later if nothing significant.
+# 7. Kitchen above ground - Highly skewed
+# 8. Bsmt.Half.Bath - Highly skewed
+# 9. Land.Contour - Skewed. Include later if nothing significant
+# 10. Land Slope - Box Plot not coming useful
+# 11. Lot Shape - Box Plot not coming useful
+# 12. Lot Config - Box Plot coming useful
+# 13. House Style - Box Plot not useful
+
+drops <- c("Utilities","Neighborhood","MS.Zoning","MS.SubClass",
+           "Utilities","Condition.1","Condition.2","Sale.Type",
+           "Kitchen.AbvGr","Bsmt.Half.Bath","Land.Contour",
+           "Alley","Roof.Style","Land.Slope","Lot.Shape",
+           "Lot.Config","House.Style","Bldg.Type")
+AmesHousingC <- AmesHousingC[ , !(names(AmesHousingC) %in% drops)]
+
+# Creating 3 new variables by combining existing ones, Grouping and Factoring Nominal Variables, Converting Year variables to interval data
+AmesHousingC$totalbathsC <- 
+  AmesHousingC$Bsmt.Full.Bath + AmesHousingC$Full.Bath + AmesHousingC$Half.Bath
+AmesHousingC$totalareaFSC <- AmesHousingC$X1st.Flr.SF + AmesHousingC$X2nd.Flr.SF
+AmesHousingC$totalbaseSFC <- AmesHousingC$BsmtFin.SF.1 + AmesHousingC$BsmtFin.SF.2
+AmesHousingC$houseage <- 2010 - AmesHousingC$Year.Built
+AmesHousingC$houseremodage <- 2010 - AmesHousingC$Year.Remod.Add
+AmesHousingC$FoundationG <- 
+  ifelse(AmesHousingC$Foundation == 'PConc','Concrete','NotConcrete')
+
+# Inside and Not Inside Lot Config 
+AmesHousingC$totalbathsCG <- 
+  ifelse(AmesHousingC$totalbathsC >=3 ,'>=3',AmesHousingC$totalbathsC)
+AmesHousingC$totalFireG <- 
+  ifelse(AmesHousingC$Fireplaces >= 2,'>=2',AmesHousingC$Fireplaces)
+AmesHousingC$Garage.CarsG <- 
+  ifelse(AmesHousingC$Garage.Cars >= 3,'>=3',AmesHousingC$Garage.Cars)
+AmesHousingC$Sale.ConditionG <- 
+  ifelse(AmesHousingC$Sale.Condition == 'Normal','Normal','NotNormal')
+
+drops <- c("Year.Built","Year.Remod.Add","Foundation","totalbathsC","Fireplaces",
+           "Bsmt.Full.Bath","Full.Bath","Half.Bath","Garage.Cars",
+           "Half.Bath","Full.Bath","")
+AmesHousingC <- AmesHousingC[ , !(names(AmesHousingC) %in% drops)]
+
+# Converting variables to Factors
+interval_to_factor <- c("Bedroom.AbvGr", "TotRms.AbvGrd","totalbathsCG","totalFireG","Garage.CarsG")
+AmesHousingC[, c(interval_to_factor)] <- 
+  lapply(AmesHousingC[, c(interval_to_factor)], factor)
+AmesHousingC$Bedroom.AbvGrF <- factor(AmesHousingC$Bedroom.AbvGr)
+AmesHousingC$TotRms.AbvGrdF <- factor(AmesHousingC$TotRms.AbvGrd)
+AmesHousingC$FoundationGF <- factor(AmesHousingC$FoundationG)
+AmesHousingC$totalbathsCGF <- factor(AmesHousingC$totalbathsCG)
+AmesHousingC$totalfireGF <- factor(AmesHousingC$totalFireG)
+AmesHousingC$Garage.CarsGF <- factor(AmesHousingC$Garage.CarsG)
+AmesHousingC$Sale.ConditionGF <- factor(AmesHousingC$Sale.ConditionG)
+
+```
+
+
+## Model development and evaluation
+After we cleaned up the data and screen, filter and transformed all the variables we begin the regression model. 
+
+Before we begin the regression, we also run regression with total number of rooms and total number of bedrooms, however, they turned out to have very high p-values and we dropped these two nominal variables.
+
+
+
+```{r}
+# Model1: Building Initial Regression Model on 7 variables
+linefitm1 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
+                 AmesHousingC$totalfireGF + AmesHousingC$totalbathsCGF + 
+                 AmesHousingC$FoundationGF + AmesHousingC$TotRms.AbvGrdF + 
+                 AmesHousingC$Bedroom.AbvGrF + AmesHousingC$Sale.ConditionGF)
+
+summary(linefitm1)
+```
+
+```{r}
+# Model2: Drop Bedroom.Abvgr and TotRoms.AbvGrd and Building new Regression Model on 7 variables
+linefitm2 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
+                 AmesHousingC$totalfireGF + AmesHousingC$totalbathsCGF + 
+                 AmesHousingC$FoundationGF + AmesHousingC$Lot.Area + 
+                 AmesHousingC$Sale.ConditionGF)
+
+summary(linefitm2)
+```
+
+Based on the result of model 2, we further develop our model by grouping all the variables concerning basement into one single variable.
+
+```{r}
+# Model3: Include Added Continous Variables to check for significance. We will decide to drop the individual. Building new Regression Model on new set of variables.
+linefitm3 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
+                 AmesHousingC$totalfireGF + AmesHousingC$totalbathsCGF + 
+                 AmesHousingC$FoundationGF + AmesHousingC$Lot.Area + 
+                 AmesHousingC$totalbaseSFC + AmesHousingC$Bsmt.Unf.SF + 
+                 AmesHousingC$totalareaFSC + AmesHousingC$Low.Qual.Fin.SF + 
+                 AmesHousingC$Low.Qual.Fin.SF + AmesHousingC$Gr.Liv.Area + 
+                 AmesHousingC$Garage.Area + AmesHousingC$Wood.Deck.SF + 
+                 AmesHousingC$Open.Porch.SF + AmesHousingC$houseage + 
+                 AmesHousingC$houseremodage)
+
+summary(linefitm3)
+```
+
+
+```{r}
+# Model4: Dropping Open Porch, Low.Qual.Fin.SF, totalbathsCGF1 due to high p-values Greater Living Area is correlated ('NA'). Building new Regression Model on new set of variables.
+linefitm4 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
+                 AmesHousingC$totalfireGF + AmesHousingC$FoundationGF + 
+                 AmesHousingC$Lot.Area + AmesHousingC$totalbaseSFC + 
+                 AmesHousingC$Bsmt.Unf.SF + AmesHousingC$totalareaFSC + 
+                 AmesHousingC$Garage.Area + AmesHousingC$Wood.Deck.SF + 
+                 AmesHousingC$houseage + AmesHousingC$houseremodage)
+
+summary(linefitm4)
+```
+
+```{r}
+# Model5: Combining totalbaseSFC and Bsmt.Unf.SF to form total basement area. Building new Regression Model on new set of variables.
+AmesHousingC$totalbasementC = AmesHousingC$totalbaseSFC + AmesHousingC$Bsmt.Unf.SF
+
+linefitm5 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
+                 AmesHousingC$totalfireGF + AmesHousingC$FoundationGF + 
+                 AmesHousingC$Lot.Area + AmesHousingC$totalbasementC + 
+                 AmesHousingC$totalareaFSC + AmesHousingC$Garage.Area + 
+                 AmesHousingC$Wood.Deck.SF + AmesHousingC$houseage + 
+                 AmesHousingC$houseremodage)
+
+summary(linefitm5)
+```
+
+```{r}
+# Model6: Finetuning Model5 using K TABLE approach.
+linefitm6 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
+                 AmesHousingC$totalfireGF + AmesHousingC$FoundationGF + 
+                 AmesHousingC$totalbasementC + AmesHousingC$totalareaFSC + 
+                 AmesHousingC$houseage + AmesHousingC$houseremodage)
+
+summary(linefitm6)
+```
+
+```{r}
+# Model7: Removing houseremodage and FoundationGF based on the K Table. Building new Regression Model on new set of variables.
+linefitm7 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
+                 AmesHousingC$totalfireGF + AmesHousingC$totalbasementC + 
+                 AmesHousingC$totalareaFSC + AmesHousingC$houseage)
+
+summary(linefitm7)
+```
+
+```{r}
+# standardized residual plot ‐ on fitted values
+linefitm7.stres <- rstandard(linefitm7)
+plot(linefitm7$fitted.values, linefitm7.stres, pch = 16, 
+     main = "Standardized Residual Plot", xlab = "Fitted Value", 
+     ylab = "Standardized Residual s")
+abline(0,0, lty=2, col="red")
+```
+
+```{r, fig.aligh="center"}
+residualPlots(linefitm7)
+```
+
+```{r, fig.aligh="center"}
+residualPlot(linefitm7, col='blue', id.n=10)
+```
+
+```{r}
+# Removing Outliers. 
+AmesHousingC <- AmesHousingC[-c(1766,1759,2180,2179,1497,433,2443,1064,45,434),]
+AmesHousingC <- within(AmesHousingC, Garage.CarsGF <- relevel(Garage.CarsGF, ref = 2))
+AmesHousingC <- within(AmesHousingC, totalfireGF <- relevel(totalfireGF, ref = 2))
+```
+
+```{r}
+# Model8: Building new Regression Model on new data, with 0 as base for Garage and Fireplaces -- OUR FINAL MODEL
+linefitm8 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
+                 AmesHousingC$totalfireGF + AmesHousingC$totalbasementC + 
+                 AmesHousingC$totalareaFSC + AmesHousingC$houseage)
+
+summary(linefitm8)
+```
+
+## Validating Assumptions
+1. We first checked the standardized residual plot, to see if there are any outliers, and if the standardized residual conforms to normal distribution.
+
+- From the residual plot, we could notice that there are several outliers and combined with the residual plot with each variable, we decided to remove the top 10 outliers.
+- We also notice that there might be heteroscedasticity for this regression model and therefore, the prediction for houses with high value might be inaccurate.
+- We did consider using the log transformation, however, this would be very hard to interpret and not much help for business.
+
+2. We removed that outliers from the dataset and do the analysis again
+
+3. We then check the correlation between the variables. According to the correlation table below, there seems to be correlation between variables, however none of them exceed 0.7. As we are interested in predicting the House Price, we could accept these correlation for now. However, the caution should be taken when interpreting these variables.
+
+4. In addition, we also check the residual plots against each variable, and also revisit the residuals using QQ plots and histogram.
+
+```{r, fig.aligh="center"}
+# standardized residual plot ‐ on fitted values
+linefitm8.stres <- rstandard(linefitm8)
+plot(linefitm8$fitted.values, linefitm8.stres, pch = 16, 
+     main = "Standardized Residual Plot", xlab = "Fitted Value", 
+     ylab = "Standardized Residual s")
+abline(0,0, lty=2, col="red")
+```
+
+```{r, fig.aligh="center"}
+residualPlots(linefitm8)
+```
+
+```{r, fig.aligh="center"}
+residualPlot(linefitm8, col='blue', id.n=5)
+```
+
+```{r, fig.aligh="center"}
+# collinearity check: correlations among predictors
+data <- AmesHousingC[ , c("Garage.CarsGF", "totalfireGF", 
+                          "totalbasementC", "totalareaFSC", "houseage")]
+CorrM <- cor(data[,3:5])
+corrplot(CorrM, method="circle")
+```
+
+```{r, fig.aligh="center"}
+# Histogram of Residuals with normal curve
+h <- hist(linefitm8.stres)
+x <- linefitm8.stres
+xfit <- seq(min(x), max(x), length = 50)
+yfit <- dnorm(xfit, mean = mean(x), sd = sd(x))
+yfit <- yfit*diff(h$mids[1:2])*length(x) 
+lines(xfit, yfit, col="blue")
+```
+
+```{r, fig.aligh="center"}
+# Normal Probability Plot (QQ plot)
+qqnorm(linefitm8.stres, main = "Normal Probability Plot", 
+       xlab = "Normal Scores ", ylab = "Standardized Residuals")
+qqline(linefitm8.stres, col = "red")
+```
+
+```{r}
+## Shapiro‐Wilk normality test
+shapiro.test(linefitm8.stres)
+```
+
+# Interpretation
+
+The final model we have could explain as much as 80% of variations of house sales price. And we could offer more insights into the house price using the five most important attributes we identified in our final model.
+
+- Total Area: If there are two houses with all the other four attributes identified by our model similar, the one with one more square foot of area above ground will be sold $64 more than the other.
+
+- Age: If there are two houses with all the other four attributes identified by our model similar, the one which is built one year younger will be sold $669 more than the other.
+
+- Basement Area: If there are two houses with all the other four attributes identified by our model similar, the one with one more square foot of basement area will be sold $45 more than the other.
+
+- Garage Cars 0: If there are two houses with all the other four attributes identified by our model similar, the one with no garage for cars will be sold $13,106 less than the one with the garage that could contain one car.
+
+- Garage Cars 2: If there are two houses with all the other four attributes identified by our model similar, the one with garage space for two cars will be sold $1,070 more than the one with the garage that could contain one car.
+
+- Garage Cars &gt;= 3: If there are two houses with all the other four attributes identified by our model similar, the one with garage space equal or more than three cars will be sold $50,415 more than the one with the garage that could contain one car.
+
+- Fire Place 0: If there are two houses with all the other four attributes identified by our model similar, the one with no fireplace will be sold $13,995 less than the one with one fireplace.
+
+- Fire Place 2: If there are two houses with all the other four attributes identified by our model similar, the one with two or more fireplaces will be sold $14,882 more than the one with one fireplace.
+
+# Conclusion
+
+In conclusion, the model we developed could well explain and predict the price according to the information provided by the dataset. We could use this model for real estate companies in Amesto estimate the fair value of their properties, as well as for customers to evaluate potential price of a house in Ames.
+
+We also identified five important attributes that are driving house price, the total living area above group, the basement area, the age of the house, the garage space of the house and fireplaces. It would help local real estate industry to understand more about the attributes that Ames citizens find important when searching a house. Surprising, fireplace which we did not expect to be highly related to sales price is in fact very important to Ames residents.
+
+# Limitations
+
+Our model has certain limitations and caution should be taken when implementing our model
+
+1. Individual Residential Property: Our model concerns only residential properties. The model might not work well if one applies the model to other kinds of properties, like business, or industrial properties.
+
+2. Price range: The data we obtained only have house price range from $12,800 to $755,000, and therefore our model would not be suitable to use for any house with a potential price outside this range.
+
+3. Location: The model we built concerns only the houses in Ames, Iowa. The model would not be suitable for other cities.
+
+4. Unexplained variation: Our model explains as much as 80% of the variation in house price. However, it should always be keep in mind when implementing that there are 20% unexplained variation, and caution should be executed.
+
+5. High end market: During our research, we checked the assumption for regression and find two possible problems with our model.
+- The accuracy of the model might decrease for high price houses as we don&#39;t have enough data on the high-end market.
+- There are medium correlation between total area and basement area, which means that normally basement area would increase as the total area above ground increase.

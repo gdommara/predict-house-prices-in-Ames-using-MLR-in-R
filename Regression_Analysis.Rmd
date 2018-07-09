@@ -161,11 +161,15 @@ as.data.frame(t(stat.desc(AmesHousing)))
 
 ```{r, fig.aligh="center"}
 # Detailed exploration of only those variables identified important from domain knowledge
-int_var_from_domain <- c( "Lot.Frontage", "Lot.Area", "Year.Built", "Year.Remod.Add", "BsmtFin.SF.1", "BsmtFin.SF.2", "Bsmt.Unf.SF", "Total.Bsmt.SF", "X1st.Flr.SF", "X2nd.Flr.SF", "Low.Qual.Fin.SF", "Gr.Liv.Area", "Garage.Yr.Blt", "Garage.Area", "Wood.Deck.SF", "Open.Porch.SF")
+int_var_from_domain <- c( "Lot.Frontage","Lot.Area","Year.Built","Year.Remod.Add",
+                          "BsmtFin.SF.1","BsmtFin.SF.2","Bsmt.Unf.SF","Total.Bsmt.SF",
+                          "X1st.Flr.SF","X2nd.Flr.SF","Low.Qual.Fin.SF","Gr.Liv.Area",
+                          "Garage.Yr.Blt","Garage.Area","Wood.Deck.SF","Open.Porch.SF")
 
 int_var_data <- AmesHousing[ , c(int_var_from_domain)]
 int_var_data_w_SP <- cbind(int_var_data, AmesHousing$SalePrice)
-colnames(int_var_data_w_SP)[which(names(int_var_data_w_SP) == "AmesHousing$SalePrice")] <- "SalePrice"
+colnames(int_var_data_w_SP)[which(names(int_var_data_w_SP) == 
+                                    "AmesHousing$SalePrice")] <- "SalePrice"
 int_var_data_w_SP %>%
   gather(-SalePrice, key = "var", value = "value") %>% 
   ggplot(aes(x = value, y = SalePrice)) +
@@ -186,11 +190,18 @@ int_var_data_w_SP %>%
 ```
 
 ```{r, fig.aligh="center"}
-nom_var_from_domain <- c("MS.SubClass", "MS.Zoning", "Alley", "Lot.Shape", "Land.Contour", "Utilities", "Lot.Config", "Land.Slope", "Neighborhood", "Condition.1", "Condition.2", "Bldg.Type", "House.Style", "Roof.Style", "Foundation", "Bsmt.Full.Bath", "Bsmt.Half.Bath", "Full.Bath", "Half.Bath", "Bedroom.AbvGr", "Kitchen.AbvGr", "TotRms.AbvGrd", "Fireplaces", "Garage.Type", "Garage.Cars", "Sale.Type", "Sale.Condition")
+nom_var_from_domain <- c("MS.SubClass","MS.Zoning","Alley","Lot.Shape","Land.Contour",
+                         "Utilities","Lot.Config","Land.Slope","Neighborhood",
+                         "Condition.1","Condition.2","Bldg.Type","House.Style",
+                         "Roof.Style","Foundation","Bsmt.Full.Bath","Bsmt.Half.Bath",
+                         "Full.Bath","Half.Bath","Bedroom.AbvGr","Kitchen.AbvGr",
+                         "TotRms.AbvGrd","Fireplaces","Garage.Type","Garage.Cars",
+                         "Sale.Type","Sale.Condition")
 
 nom_var_data <- AmesHousing[, c(nom_var_from_domain)]
 nom_var_data_w_SP <- cbind(nom_var_data, AmesHousing$SalePrice)
-colnames(nom_var_data_w_SP)[which(names(nom_var_data_w_SP) == "AmesHousing$SalePrice")] <- "SalePrice"
+colnames(nom_var_data_w_SP)[which(names(nom_var_data_w_SP) == 
+                                    "AmesHousing$SalePrice")] <- "SalePrice"
 nom_var_data_w_SP %>%
   gather(-SalePrice, key = "var", value = "value") %>% 
   ggplot(aes(x = value, y = SalePrice)) +
@@ -265,7 +276,8 @@ In order to better capture the change in dependent variables, we transform some 
 | ConditionG | Sale.Condition | Houses with normal or non-normal sales condition |
 
 ```{r}
-# Keeping only those variables identified important from domain knowledge (importance levels 1 & 2)
+# Keeping only those variables identified important from domain knowledge 
+#     (importance levels 1 & 2)
 keeps <- c('MS.Zoning','MS.SubClass','Lot.Area','Lot.Shape','Land.Contour',
            'Utilities','Lot.Config','Land.Slope','Neighborhood','Condition.1',
            'Condition.2','Bldg.Type','House.Style','Year.Built','Year.Remod.Add',
@@ -277,12 +289,15 @@ keeps <- c('MS.Zoning','MS.SubClass','Lot.Area','Lot.Shape','Land.Contour',
            'Open.Porch.SF','Sale.Type','Sale.Condition', 'SalePrice')
 
 AmesHousingC <- AmesHousing[ ,names(AmesHousing) %in% keeps]
-drops <- c("Garage.Type")   # Dropping "Garage Type" as it is not significant and has missing values
+# Dropping "Garage Type" as it is not significant and has missing values
+drops <- c("Garage.Type")
 AmesHousingC <- AmesHousingC[ ,!(names(AmesHousingC) %in% drops)]
 AmesHousingC <- na.omit(AmesHousingC)   # 3 observations dropped
 sum(is.na(AmesHousingC))   # No missing values
 
-# Dataset has 39 variables now. We would like to drop few more variables based on their complexity in interpretation, population distribution, distribution(box_plot) with sales price
+# Dataset has 39 variables now. We would like to drop few more variables based on their
+# complexity in interpretation, population distribution, distribution (box_plot) 
+# with sales price
 
 # NOMINAL
 # 1. Neighbourhood - High number of categories, potentially captured by other var,
@@ -308,7 +323,8 @@ drops <- c("Utilities","Neighborhood","MS.Zoning","MS.SubClass",
            "Lot.Config","House.Style","Bldg.Type")
 AmesHousingC <- AmesHousingC[ , !(names(AmesHousingC) %in% drops)]
 
-# Creating 3 new variables by combining existing ones, Grouping and Factoring Nominal Variables, Converting Year variables to interval data
+# Creating 3 new variables by combining existing ones, Grouping and Factoring Nominal
+# Variables, Converting Year variables to interval data
 AmesHousingC$totalbathsC <- 
   AmesHousingC$Bsmt.Full.Bath + AmesHousingC$Full.Bath + AmesHousingC$Half.Bath
 AmesHousingC$totalareaFSC <- AmesHousingC$X1st.Flr.SF + AmesHousingC$X2nd.Flr.SF
@@ -366,7 +382,8 @@ summary(linefitm1)
 ```
 
 ```{r}
-# Model2: Drop Bedroom.Abvgr and TotRoms.AbvGrd and Building new Regression Model on 7 variables
+# Model2: Drop Bedroom.Abvgr and TotRoms.AbvGrd and Building new Regression 
+# Model on 7 variables
 linefitm2 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
                  AmesHousingC$totalfireGF + AmesHousingC$totalbathsCGF + 
                  AmesHousingC$FoundationGF + AmesHousingC$Lot.Area + 
@@ -378,7 +395,8 @@ summary(linefitm2)
 Based on the result of model 2, we further develop our model by grouping all the variables concerning basement into one single variable.
 
 ```{r}
-# Model3: Include Added Continous Variables to check for significance. We will decide to drop the individual. Building new Regression Model on new set of variables.
+# Model3: Include Added Continous Variables to check for significance. 
+# Building new Regression Model on new set of variables.
 linefitm3 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
                  AmesHousingC$totalfireGF + AmesHousingC$totalbathsCGF + 
                  AmesHousingC$FoundationGF + AmesHousingC$Lot.Area + 
@@ -394,7 +412,9 @@ summary(linefitm3)
 
 
 ```{r}
-# Model4: Dropping Open Porch, Low.Qual.Fin.SF, totalbathsCGF1 due to high p-values Greater Living Area is correlated ('NA'). Building new Regression Model on new set of variables.
+# Model4: Dropping Open Porch, Low.Qual.Fin.SF, totalbathsCGF1 due to high p-values 
+# Greater Living Area is correlated ('NA'). Building new Regression Model on 
+# new set of variables.
 linefitm4 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
                  AmesHousingC$totalfireGF + AmesHousingC$FoundationGF + 
                  AmesHousingC$Lot.Area + AmesHousingC$totalbaseSFC + 
@@ -406,7 +426,8 @@ summary(linefitm4)
 ```
 
 ```{r}
-# Model5: Combining totalbaseSFC and Bsmt.Unf.SF to form total basement area. Building new Regression Model on new set of variables.
+# Model5: Combining totalbaseSFC and Bsmt.Unf.SF to form total basement area. 
+# Building new Regression Model on new set of variables.
 AmesHousingC$totalbasementC = AmesHousingC$totalbaseSFC + AmesHousingC$Bsmt.Unf.SF
 
 linefitm5 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
@@ -430,7 +451,8 @@ summary(linefitm6)
 ```
 
 ```{r}
-# Model7: Removing houseremodage and FoundationGF based on the K Table. Building new Regression Model on new set of variables.
+# Model7: Removing houseremodage and FoundationGF based on the K Table. 
+# Building new Regression Model on new set of variables.
 linefitm7 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
                  AmesHousingC$totalfireGF + AmesHousingC$totalbasementC + 
                  AmesHousingC$totalareaFSC + AmesHousingC$houseage)
@@ -463,7 +485,8 @@ AmesHousingC <- within(AmesHousingC, totalfireGF <- relevel(totalfireGF, ref = 2
 ```
 
 ```{r}
-# Model8: Building new Regression Model on new data, with 0 as base for Garage and Fireplaces -- OUR FINAL MODEL
+# Model8: Building new Regression Model on new data, with 0 as base for Garage 
+# and Fireplaces -- OUR FINAL MODEL
 linefitm8 <-lm(AmesHousingC$SalePrice ~ AmesHousingC$Garage.CarsGF + 
                  AmesHousingC$totalfireGF + AmesHousingC$totalbasementC + 
                  AmesHousingC$totalareaFSC + AmesHousingC$houseage)
@@ -570,5 +593,5 @@ Our model has certain limitations and caution should be taken when implementing 
 4. Unexplained variation: Our model explains as much as 80% of the variation in house price. However, it should always be keep in mind when implementing that there are 20% unexplained variation, and caution should be executed.
 
 5. High end market: During our research, we checked the assumption for regression and find two possible problems with our model.
-- The accuracy of the model might decrease for high price houses as we don&#39;t have enough data on the high-end market.
-- There are medium correlation between total area and basement area, which means that normally basement area would increase as the total area above ground increase.
+ - The accuracy of the model might decrease for high price houses as we don&#39;t have enough data on the high-end market.
+ - There are medium correlation between total area and basement area, which means that normally basement area would increase as the total area above ground increase.
